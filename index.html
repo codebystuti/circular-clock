@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clock — codebystuti</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --border: rgba(255,255,255,0.07);
+      --text-primary: #f0efe8;
+      --text-muted: rgba(240,239,232,0.4);
+      --h-color: #ff2972;
+      --m-color: #fee800;
+      --s-color: #04fc43;
+      --h-glow: rgba(255,41,114,0.25);
+      --m-glow: rgba(254,232,0,0.2);
+      --s-glow: rgba(4,252,67,0.2);
+      --ring-track: rgba(255,255,255,0.06);
+      --circumference: 440;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: 'Syne', sans-serif;
+      overflow: hidden;
+    }
+
+    /* Subtle grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .scene {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 64px;
+      padding: 40px 24px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header__label {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .header__date {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-muted);
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* Clock rings container */
+    .clock {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    /* Individual ring unit */
+    .ring-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      position: relative;
+    }
+
+    .ring-wrap {
+      position: relative;
+      width: 160px;
+      height: 160px;
+      overflow: visible;
+    }
+
+    /* SVG ring */
+    .ring-wrap svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .ring-track {
+      fill: none;
+      stroke: var(--ring-track);
+      stroke-width: 3;
+    }
+
+    .ring-fill {
+      fill: none;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 440;
+      stroke-dashoffset: 440;
+      transition: stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .ring-unit--h .ring-fill { stroke: var(--h-color); }
+    .ring-unit--m .ring-fill { stroke: var(--m-color); }
+    .ring-unit--s .ring-fill { stroke: var(--s-color); }
+
+    /* Orbiting dot — drawn directly in SVG, no CSS tricks */
+    .ring-dot {
+      transition: cx 0.9s cubic-bezier(0.4,0,0.2,1), cy 0.9s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* Center display */
+    .ring-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+    }
+
+    .ring-number {
+      font-family: 'DM Mono', monospace;
+      font-size: 2.2rem;
+      font-weight: 400;
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .ring-unit--h .ring-number { color: var(--h-color); }
+    .ring-unit--m .ring-number { color: var(--m-color); }
+    .ring-unit--s .ring-number { color: var(--s-color); }
+
+    .ring-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* Divider between rings */
+    .ring-divider {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-bottom: 24px;
+    }
+
+    .ring-divider span {
+      display: block;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+
+    /* AM/PM + timezone pill */
+    .time-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ampm-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.07);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 10px;
+    }
+
+    .tz-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Footer sig */
+    .footer {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .footer a {
+      color: var(--s-color);
+      text-decoration: none;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    .footer a:hover { opacity: 1; }
+
+    /* Fade in on load */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .header  { animation: fadeUp 0.6s ease both; }
+    .clock   { animation: fadeUp 0.6s 0.1s ease both; }
+    .time-meta { animation: fadeUp 0.6s 0.2s ease both; }
+    .footer  { animation: fadeUp 0.6s 0.3s ease both; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .clock { gap: 24px; }
+      .ring-number { font-size: 1.6rem; }
+      .ring-divider { display: none; }
+    }
+
+    @media (max-width: 576px) {
+      .clock { gap: 15px; }
+      .ring-wrap { width: 110px; height: 110px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="scene">
+
+    <header class="header">
+      <span class="header__label">Local Time</span>
+      <span class="header__date" id="date-display">—</span>
+    </header>
+
+    <div class="clock" role="timer" aria-label="Current time">
+
+      <!-- Hours -->
+      <div class="ring-unit ring-unit--h">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 150 150" aria-hidden="true">
+            <defs>
+              <filter id="glow-h" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="3" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <circle class="ring-track" cx="75" cy="75" r="70" transform="rotate(-90,75,75)"/>
+            <circle class="ring-fill" id="hh" cx="75" cy="75" r="70" transform="rotate(-90,75,75)"/>
+            <circle id="dot-h" class="ring-dot" r="6" cx="75" cy="5" fill="var(--h-color)" filter="url(#glow-h)"/>
+          </svg>
+          <div class="ring-center">
+            <span class="ring-number" id="hours">00</span>
+            <span class="ring-label">hrs</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ring-divider" aria-hidden="true">
+        <span></span><span></span>
+      </div>
+
+      <!-- Minutes -->
+      <div class="ring-unit ring-unit--m">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 150 150" aria-hidden="true">
+            <defs>
+              <filter id="glow-m" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="3" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <circle class="ring-track" cx="75" cy="75" r="70" transform="rotate(-90,75,75)"/>
+            <circle class="ring-fill" id="mm" cx="75" cy="75" r="70" transform="rotate(-90,75,75)"/>
+            <circle id="dot-m" class="ring-dot" r="6" cx="75" cy="5" fill="var(--m-color)" filter="url(#glow-m)"/>
+          </svg>
+          <div class="ring-center">
+            <span class="ring-number" id="minutes">00</span>
+            <span class="ring-label">min</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ring-divider" aria-hidden="true">
+        <span></span><span></span>
+      </div>
+
+      <!-- Seconds -->
+      <div class="ring-unit ring-unit--s">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 150 150" aria-hidden="true">
+            <defs>
+              <filter id="glow-s" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="3" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <circle class="ring-track" cx="75" cy="75" r="70" transform="rotate(-90,75,75)"/>
+            <circle class="ring-fill" id="ss" cx="75" cy="75" r="70" transform="rotate(-90,75,75)"/>
+            <circle id="dot-s" class="ring-dot" r="6" cx="75" cy="5" fill="var(--s-color)" filter="url(#glow-s)"/>
+          </svg>
+          <div class="ring-center">
+            <span class="ring-number" id="seconds">00</span>
+            <span class="ring-label">sec</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="time-meta">
+      <span class="ampm-badge" id="ampm">AM</span>
+      <span class="tz-badge" id="tz-display">—</span>
+    </div>
+
+    <footer class="footer">
+      built by <a href="https://github.com/codebystuti" target="_blank" rel="noopener">codebystuti</a>
+    </footer>
+
+  </div>
+
+  <script>
+    const hoursEl   = document.getElementById('hours');
+    const minutesEl = document.getElementById('minutes');
+    const secondsEl = document.getElementById('seconds');
+    const ampmEl    = document.getElementById('ampm');
+    const dateEl    = document.getElementById('date-display');
+    const tzEl      = document.getElementById('tz-display');
+
+    const hhCircle  = document.getElementById('hh');
+    const mmCircle  = document.getElementById('mm');
+    const ssCircle  = document.getElementById('ss');
+
+    const dotH      = document.getElementById('dot-h');
+    const dotM      = document.getElementById('dot-m');
+    const dotS      = document.getElementById('dot-s');
+
+    const C  = 440;  // stroke circumference
+    const CX = 75;   // SVG circle center x
+    const CY = 75;   // SVG circle center y
+    const R  = 70;   // circle radius
+
+    const pad = n => String(n).padStart(2, '0');
+
+    const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    // Convert a 0–1 progress fraction to SVG (cx,cy) on the ring.
+    // SVG is rotated -90deg so 0 = top.
+    // angle 0 = top = -90deg in standard coords
+    function dotPos(fraction) {
+      const angle = (fraction * 2 * Math.PI) - (Math.PI / 2);
+      return {
+        cx: CX + R * Math.cos(angle),
+        cy: CY + R * Math.sin(angle)
+      };
+    }
+
+    function updateClock() {
+      const now = new Date();
+      let h = now.getHours();
+      const m = now.getMinutes();
+      const s = now.getSeconds();
+      const ampm = h >= 12 ? 'PM' : 'AM';
+
+      if (s === 0) {
+        ssCircle.style.transition = 'none';
+        dotS.style.transition = 'none';
+        requestAnimationFrame(() => {
+          ssCircle.style.transition = '';
+          dotS.style.transition = '';
+        });
+      }
+      if (m === 0 && s === 0) {
+        mmCircle.style.transition = 'none';
+        dotM.style.transition = 'none';
+        requestAnimationFrame(() => {
+          mmCircle.style.transition = '';
+          dotM.style.transition = '';
+        });
+      }
+      if (h === 0 && m === 0 && s === 0) {
+        hhCircle.style.transition = 'none';
+        dotH.style.transition = 'none';
+        requestAnimationFrame(() => {
+          hhCircle.style.transition = '';
+          dotH.style.transition = '';
+        });
+      }
+
+      dateEl.textContent = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()} ${now.getFullYear()}`;
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      tzEl.textContent = tz.replace('_', ' ');
+
+      h = h % 12 || 12;
+
+      hoursEl.textContent   = pad(h);
+      minutesEl.textContent = pad(m);
+      secondsEl.textContent = pad(s);
+      ampmEl.textContent    = ampm;
+
+      // Ring stroke offsets
+      const hourFraction = m > 30
+        ? (h + 1) / 12
+        : (h + m / 60) / 12;
+      const minFraction  = m / 60;
+      const secFraction  = s / 60;
+
+      hhCircle.style.strokeDashoffset = C - C * hourFraction;
+      mmCircle.style.strokeDashoffset = C - C * minFraction;
+      ssCircle.style.strokeDashoffset = C - C * secFraction;
+
+      // Dot positions — placed at the tip of each arc
+      const hPos = dotPos(hourFraction);
+      const mPos = dotPos(minFraction);
+      const sPos = dotPos(secFraction);
+
+      dotH.setAttribute('cx', hPos.cx);
+      dotH.setAttribute('cy', hPos.cy);
+      dotM.setAttribute('cx', mPos.cx);
+      dotM.setAttribute('cy', mPos.cy);
+      dotS.setAttribute('cx', sPos.cx);
+      dotS.setAttribute('cy', sPos.cy);
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+  </script>
+</body>
+</html>
