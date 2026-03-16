@@ -15,12 +15,13 @@
       --border: rgba(255,255,255,0.07);
       --text-primary: #f0efe8;
       --text-muted: rgba(240,239,232,0.4);
-      --h-color: #ff2972;
-      --m-color: #fee800;
-      --s-color: #04fc43;
-      --h-glow: rgba(255,41,114,0.25);
-      --m-glow: rgba(254,232,0,0.2);
-      --s-glow: rgba(4,252,67,0.2);
+      --h-color: #7a7870; 
+      /* #ff2972 */
+      --m-color: #b8b3a8;
+      --s-color: #e8c547;
+      --h-glow: rgba(122, 120, 112, 0.35);
+      --m-glow: rgba(184, 179, 168, 0.3);
+      --s-glow: rgba(232, 197, 71, 0.4);
       --ring-track: rgba(255,255,255,0.06);
       --circumference: 440;
     }
@@ -157,8 +158,8 @@
       letter-spacing: -0.02em;
     }
 
-    .ring-unit--h .ring-number { color: var(--h-color); }
-    .ring-unit--m .ring-number { color: var(--m-color); }
+    .ring-unit--h .ring-number { color: var(--text-primary); }
+    .ring-unit--m .ring-number { color: var(--text-primary); }
     .ring-unit--s .ring-number { color: var(--s-color); }
 
     .ring-label {
@@ -219,11 +220,12 @@
     }
 
     .footer a {
-      text-decoration: underline;
+      color: var(--s-color);
+      text-decoration: none;
       opacity: 0.7;
       transition: opacity 0.2s;
     }
-    .footer a:hover { opacity: 1; color: var(--s-color);}
+    .footer a:hover { opacity: 1; }
 
     /* Fade in on load */
     @keyframes fadeUp {
